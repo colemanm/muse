@@ -1,0 +1,10 @@
+- What made you smile today?
+- Describe a small act of kindness you witnessed or performed recently.
+- What's something you're looking forward to this week?
+- Write about a challenge you overcame recently.
+- What's something new you learned in the last few days?
+- Describe your ideal morning routine.
+- What's a goal you're working towards right now?
+- Write about someone who inspires you and why.
+- What's a memory that always makes you happy?
+- What are three things you're grateful for today? 
