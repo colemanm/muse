@@ -58,13 +58,6 @@ vercel
 
 MIT
 
-## Features
-
-- Displays a single prompt at a time
-- Prompts are stored in a markdown file, each one as a bullet
-- "Dice roll" button for randomly selecting a single prompt to display
-- "Show full list" option to see the archive of all prompts
-
 ## Tech
 
 - React Native
@@ -74,14 +67,10 @@ MIT
 
 ## Future Features
 
-- Upload your own prompts from a file
-- Sign in with Google to save your prompts
-- Save authenticated users' prompts to a database
 - Mark a prompt as "used"
 - Add a "last used" timestamp to each prompt
 - When randomly selecting a prompt, select only from prompts not used in the last 30 days
 - Add your own topics or themes, then use an LLM to generate prompts for each topic, and save them to a custom list
-- Store different lists of prompts for different purposes or themes
 
 ## Sources
 

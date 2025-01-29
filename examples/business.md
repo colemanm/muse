@@ -1,0 +1,4 @@
+- What did you work on yesterday?
+- What meetings did you have? Anything worthwhile?
+- What are you working on today?
+- What was your priority yesterday?

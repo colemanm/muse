@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, TouchableOpacity, Platform, Linking, ScrollView
 import prompts from './prompts.md';
 import { Feather } from '@expo/vector-icons';
 import defaultPrompts from './prompts.md';
+import { useAuth } from './hooks/useAuth';
+import { usePromptLists } from './hooks/usePromptLists';
 
 export default function App() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
@@ -11,25 +13,47 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [customFile, setCustomFile] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, loading: authLoading, error: authError, signIn, logOut } = useAuth();
+  const { 
+    promptLists, 
+    loading: listsLoading, 
+    savePromptList, 
+    deletePromptList,
+    refreshLists,
+    updatePromptList
+  } = usePromptLists(user?.uid);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [editingListId, setEditingListId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     loadPrompts(defaultPrompts);
   }, []);
 
+  useEffect(() => {
+    // Check localStorage on mount
+    const savedSidebarState = localStorage.getItem('sidebarVisible');
+    if (savedSidebarState !== null) {
+      setShowSidebar(savedSidebarState === 'true');
+    }
+  }, []);
+
   const loadPrompts = (content: string) => {
     try {
+      let promptList: string[] = [];
+
       // First try bullet format
-      let promptList = content
+      promptList = content
         .split('\n')
         .filter(line => line.trim().startsWith('- '))
         .map(line => line.substring(2).trim());
 
-      // If no bullets found, try line-by-line
+      // If no bullets found, try line-by-line, skipping empty lines
       if (promptList.length === 0) {
         promptList = content
           .split('\n')
           .map(line => line.trim())
-          .filter(line => line.length > 0);
+          .filter(line => line.length > 0 && !line.startsWith('#')); // Skip empty lines and headers
       }
       
       if (promptList.length === 0) {
@@ -52,6 +76,27 @@ export default function App() {
       const text = await file.text();
       loadPrompts(text);
       setCustomFile(file.name);
+
+      // If user is logged in, automatically save the list
+      if (user) {
+        try {
+          // Use the same parsing logic as loadPrompts
+          let prompts = text.split('\n')
+            .filter(line => line.trim().startsWith('- '))
+            .map(line => line.substring(2).trim());
+
+          if (prompts.length === 0) {
+            prompts = text.split('\n')
+              .map(line => line.trim())
+              .filter(line => line.length > 0 && !line.startsWith('#'));
+          }
+
+          await savePromptList(file.name, prompts);
+          await refreshLists();
+        } catch (error) {
+          console.error('Error auto-saving list:', error);
+        }
+      }
     } catch (error) {
       console.error('Error reading file:', error);
       setCurrentPrompt('Error reading file: ' + error.message);
@@ -69,8 +114,161 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const toggleSidebar = () => {
+    const newState = !showSidebar;
+    setShowSidebar(newState);
+    localStorage.setItem('sidebarVisible', String(newState));
+  };
+
   return (
     <View style={styles.container}>
+      {/* Add toggle button in top right */}
+      {user && promptLists.length > 0 && (
+        <TouchableOpacity 
+          style={styles.sidebarToggle}
+          onPress={toggleSidebar}
+        >
+          <Feather 
+            name={showSidebar ? "chevrons-right" : "list"} 
+            size={20} 
+            color="#666" 
+          />
+        </TouchableOpacity>
+      )}
+
+      {/* Add sign in button for logged out users */}
+      {!user && (
+        <TouchableOpacity 
+          style={styles.signInButton}
+          onPress={signIn}
+          disabled={authLoading}
+        >
+          <Feather name="log-in" size={16} color="#666" style={{ marginRight: 8 }} />
+          <Text style={styles.signInButtonText}>
+            {authLoading ? 'Signing in...' : 'Sign In'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Add sidebar */}
+      {user && promptLists.length > 0 && (
+        <View style={[
+          styles.sidebar,
+          showSidebar ? styles.sidebarVisible : styles.sidebarHidden
+        ]}>
+          <Text style={styles.sidebarTitle}>Your Saved Lists</Text>
+          <ScrollView style={styles.sidebarScroll}>
+            {promptLists.map(list => (
+              <View key={list.id} style={styles.sidebarItem}>
+                {editingListId === list.id ? (
+                  <View style={styles.sidebarItemEdit}>
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      style={styles.sidebarItemInput}
+                      autoFocus
+                      onBlur={async () => {
+                        if (editingName.trim()) {
+                          try {
+                            await updatePromptList(list.id, { name: editingName.trim() });
+                            if (customFile === list.name) {
+                              setCustomFile(editingName.trim());
+                            }
+                          } catch (error) {
+                            console.error('Error updating list name:', error);
+                          }
+                        }
+                        setEditingListId(null);
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.sidebarItemContent,
+                      list.name === customFile && styles.sidebarItemActive
+                    ]}
+                    onPress={() => {
+                      loadPrompts(list.prompts.join('\n'));
+                      setCustomFile(list.name);
+                    }}
+                  >
+                    <View style={styles.sidebarItemRow}>
+                      {list.name === customFile && (
+                        <Feather 
+                          name="chevron-right" 
+                          size={14} 
+                          color="#eb5757" 
+                          style={{ marginRight: 8 }}
+                        />
+                      )}
+                      <Text style={styles.sidebarItemText}>{list.name}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.sidebarItemEdit}
+                      onPress={() => {
+                        setEditingListId(list.id);
+                        setEditingName(list.name);
+                      }}
+                    >
+                      <Feather name="edit-2" size={14} color="#666" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.sidebarItemDelete}
+                  onPress={async () => {
+                    try {
+                      await deletePromptList(list.id);
+                      if (customFile === list.name) {
+                        loadPrompts(defaultPrompts);
+                        setCustomFile(null);
+                      }
+                    } catch (error) {
+                      console.error('Error deleting list:', error);
+                    }
+                  }}
+                >
+                  <Feather name="trash-2" size={16} color="#eb5757" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.sidebarButtons}>
+            <TouchableOpacity
+              style={styles.sidebarButton}
+              onPress={() => fileInputRef.current?.click()}
+            >
+              <Feather name="upload" size={16} color="#666" style={{ marginRight: 8 }} />
+              <Text style={styles.sidebarButtonText}>Upload Prompts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.sidebarButton, { marginTop: 8 }]}
+              onPress={logOut}
+              disabled={authLoading}
+            >
+              <Feather name="log-out" size={16} color="#666" style={{ marginRight: 8 }} />
+              <Text style={styles.sidebarButtonText}>
+                {authLoading ? 'Signing out...' : 'Sign Out'}
+              </Text>
+            </TouchableOpacity>
+            <input
+              type="file"
+              accept=".md,.txt"
+              onChange={handleFileUpload}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+            />
+          </View>
+        </View>
+      )}
+
       {!showAllPrompts ? (
         <>
           <View style={styles.cardContainer}>
@@ -91,9 +289,9 @@ export default function App() {
               </TouchableOpacity>
             </View>
           </View>
-          {customFile && (
-            <Text style={styles.customFileText}>
-              Using prompts from: {customFile}{' '}
+          <Text style={styles.customFileText}>
+            Current prompt list: {customFile || 'Default'}{' '}
+            {customFile && (
               <Text 
                 style={styles.resetLink}
                 onPress={() => {
@@ -103,8 +301,8 @@ export default function App() {
               >
                 (reset)
               </Text>
-            </Text>
-          )}
+            )}
+          </Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.buttonLeft]}
@@ -117,22 +315,6 @@ export default function App() {
               onPress={() => setShowAllPrompts(true)}
             >
               <Text style={styles.buttonText}>Show All ☰</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.uploadContainer}>
-            <input
-              type="file"
-              accept=".md,.txt"
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-            />
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={() => fileInputRef.current?.click()}
-            >
-              <Feather name="upload" size={16} color="#666" style={{ marginRight: 8 }} />
-              <Text style={styles.uploadText}>Upload Prompts</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.footer}>
@@ -342,7 +524,7 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute',
     bottom: Platform.select({ web: 20, default: 16 }),
-    right: Platform.select({ web: 20, default: 16 }),
+    left: Platform.select({ web: 20, default: 16 }),
   },
   footerText: {
     color: '#666',
@@ -402,7 +584,8 @@ const styles = StyleSheet.create({
     fontSize: Platform.select({ web: 14, default: 12 }),
     fontFamily: "'PT Serif', serif",
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
+    marginTop: -8,
     opacity: 0.8,
     maxWidth: 600,
     alignSelf: 'center',
@@ -411,5 +594,157 @@ const styles = StyleSheet.create({
     color: '#eb5757',
     textDecorationLine: 'underline',
     cursor: 'pointer',
+  },
+  savedListsContainer: {
+    position: 'absolute',
+    top: Platform.select({ web: 20, default: 16 }),
+    left: Platform.select({ web: 20, default: 16 }),
+  },
+  savedListsLabel: {
+    color: '#666',
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  savedListItem: {
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  savedListName: {
+    color: '#2c3e50',
+    fontSize: Platform.select({ web: 16, default: 14 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  errorText: {
+    color: '#eb5757',
+    fontSize: Platform.select({ web: 12, default: 10 }),
+    marginTop: 4,
+    fontFamily: "'PT Serif', serif",
+  },
+  sidebarToggle: {
+    position: 'absolute',
+    top: Platform.select({ web: 20, default: 16 }),
+    right: Platform.select({ web: 20, default: 16 }),
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    zIndex: 100,
+  },
+  sidebar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: Platform.select({ web: 300, default: 250 }),
+    backgroundColor: '#fff',
+    borderLeftWidth: 1,
+    borderLeftColor: '#ddd',
+    padding: Platform.select({ web: 20, default: 16 }),
+    paddingTop: Platform.select({ web: 60, default: 56 }),
+    transition: 'transform 0.3s ease',
+    zIndex: 50,
+  },
+  sidebarVisible: {
+    right: 0,
+    transform: [{ translateX: 0 }],
+  },
+  sidebarHidden: {
+    right: 0,
+    transform: [{ translateX: '100%' }],
+  },
+  sidebarTitle: {
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 16,
+    fontFamily: "'PT Serif', serif",
+  },
+  sidebarScroll: {
+    flex: 1,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sidebarItemContent: {
+    flex: 1,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 4,
+  },
+  sidebarItemActive: {
+    backgroundColor: 'rgba(235, 87, 87, 0.05)',
+  },
+  sidebarItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sidebarItemEdit: {
+    marginLeft: 8,
+    opacity: 0.6,
+  },
+  sidebarItemInput: {
+    flex: 1,
+    padding: 8,
+    fontSize: Platform.select({ web: 16, default: 14 }),
+    fontFamily: "'PT Serif', serif",
+    color: '#2c3e50',
+    border: '1px solid #ddd',
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    margin: 4,
+  },
+  sidebarItemDelete: {
+    padding: 12,
+    opacity: 0.7,
+  },
+  sidebarItemText: {
+    fontSize: Platform.select({ web: 16, default: 14 }),
+    color: '#2c3e50',
+    fontFamily: "'PT Serif', serif",
+  },
+  sidebarButtons: {
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 16,
+    marginTop: 8,
+  },
+  sidebarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  sidebarButtonText: {
+    color: '#666',
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  signInButton: {
+    position: 'absolute',
+    bottom: Platform.select({ web: 20, default: 16 }),
+    right: Platform.select({ web: 20, default: 16 }),
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    zIndex: 100,
+  },
+  signInButtonText: {
+    color: '#666',
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    fontFamily: "'PT Serif', serif",
   },
 }); 

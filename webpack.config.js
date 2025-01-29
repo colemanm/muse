@@ -1,5 +1,6 @@
 const createExpoWebpackConfigAsync = require('@expo/webpack-config');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync({
@@ -24,6 +25,9 @@ module.exports = async function (env, argv) {
       ],
     })
   );
+
+  // Add support for environment variables
+  config.plugins.push(new Dotenv());
 
   return config;
 }; 
