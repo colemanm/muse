@@ -72,6 +72,17 @@ MIT
 - TypeScript
 - Vercel
 
+## Future Features
+
+- Upload your own prompts from a file
+- Sign in with Google to save your prompts
+- Save authenticated users' prompts to a database
+- Mark a prompt as "used"
+- Add a "last used" timestamp to each prompt
+- When randomly selecting a prompt, select only from prompts not used in the last 30 days
+- Add your own topics or themes, then use an LLM to generate prompts for each topic, and save them to a custom list
+- Store different lists of prompts for different purposes or themes
+
 ## Sources
 
 Prompts from [this post](https://www.reddit.com/r/Journaling/comments/r7bsmz/long_list_of_journal_prompts/).
