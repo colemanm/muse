@@ -1,4 +1,5 @@
 const createExpoWebpackConfigAsync = require('@expo/webpack-config');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync({
@@ -14,6 +15,15 @@ module.exports = async function (env, argv) {
     test: /\.md$/,
     type: 'asset/source'
   });
+
+  // Copy favicon files
+  config.plugins.push(
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'assets/favicon*.{ico,png}', to: '[name][ext]' },
+      ],
+    })
+  );
 
   return config;
 }; 
