@@ -59,7 +59,7 @@ export default function App() {
               style={[styles.button, styles.buttonRight]}
               onPress={() => setShowAllPrompts(true)}
             >
-              <Text style={styles.buttonText}>Show All Prompts</Text>
+              <Text style={styles.buttonText}>Show All ☰</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.footer}>
@@ -70,6 +70,13 @@ export default function App() {
                 onPress={() => Linking.openURL('https://www.colemanm.org')}
               >
                 @colemanm
+              </Text>
+              {' • '}
+              <Text
+                style={styles.link}
+                onPress={() => Linking.openURL('https://github.com/colemanm/muse')}
+              >
+                github
               </Text>
             </Text>
           </View>
@@ -105,6 +112,13 @@ export default function App() {
               >
                 @colemanm
               </Text>
+              {' • '}
+              <Text
+                style={styles.link}
+                onPress={() => Linking.openURL('https://github.com/colemanm/muse')}
+              >
+                github
+              </Text>
             </Text>
           </View>
         </>
@@ -117,22 +131,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
-    padding: 20,
+    padding: Platform.select({ web: 20, default: 16 }),
   },
   cardContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 40,
+    marginBottom: Platform.select({ web: 20, default: 16 }),
+    paddingTop: Platform.select({ web: 40, default: 20 }),
   },
   card: {
     backgroundColor: '#fff9f0',
     borderRadius: 8,
-    padding: 40,
+    padding: Platform.select({ web: 40, default: 16 }),
     width: '100%',
     maxWidth: 600,
-    height: 300,
+    height: Platform.select({ web: 300, default: 280 }),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -143,7 +157,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     justifyContent: 'center',
     position: 'relative',
-    borderLeftWidth: 30,
+    borderLeftWidth: Platform.select({ web: 30, default: 16 }),
     borderLeftColor: '#ff9e9e',
   },
   redLine: {
@@ -155,33 +169,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#eb5757',
   },
   prompt: {
-    fontSize: 24,
+    fontSize: Platform.select({ web: 24, default: 22 }),
     textAlign: 'center',
-    lineHeight: 32,
+    lineHeight: Platform.select({ web: 32, default: 30 }),
     color: '#2c3e50',
     backgroundColor: 'rgba(255, 249, 240, 0.9)',
-    padding: 16,
+    padding: Platform.select({ web: 16, default: 8 }),
     borderRadius: 4,
-    maxWidth: 520,
+    maxWidth: Platform.select({ web: 520, default: '95%' }),
     alignSelf: 'center',
     fontFamily: "'PT Serif', serif",
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    alignItems: 'center',
+    gap: Platform.select({ web: 10, default: 8 }),
     width: '100%',
-    maxWidth: 600,
+    maxWidth: Platform.select({ web: 600, default: '100%' }),
     marginLeft: 'auto',
     marginRight: 'auto',
-    marginBottom: 20,
+    marginBottom: Platform.select({ web: 20, default: 16 }),
+    paddingHorizontal: Platform.select({ web: 0, default: 20 }),
   },
   button: {
-    flex: 1,
+    flex: Platform.select({ web: 1, default: 0 }),
+    minWidth: Platform.select({ web: 'auto', default: 140 }),
     backgroundColor: '#eb5757',
-    padding: 15,
+    padding: Platform.select({ web: 15, default: 12 }),
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -192,31 +210,32 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   buttonLeft: {
-    marginRight: 5,
+    marginRight: Platform.select({ web: 5, default: 8 }),
   },
   buttonRight: {
-    marginLeft: 5,
+    marginLeft: Platform.select({ web: 5, default: 8 }),
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: Platform.select({ web: 16, default: 15 }),
     fontWeight: 'bold',
     fontFamily: "'PT Serif', serif",
+    textAlign: 'center',
   },
   listContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 40,
+    marginBottom: Platform.select({ web: 20, default: 16 }),
+    paddingTop: Platform.select({ web: 40, default: 20 }),
   },
   listCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 40,
+    padding: Platform.select({ web: 40, default: 20 }),
     width: '100%',
     maxWidth: 600,
-    height: '80vh',
+    height: Platform.select({ web: '80vh', default: '75vh' }),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -230,31 +249,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listTitle: {
-    fontSize: 28,
+    fontSize: Platform.select({ web: 28, default: 24 }),
     fontWeight: 'bold',
     color: '#2c3e50',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: Platform.select({ web: 24, default: 20 }),
     fontFamily: "'PT Serif', serif",
   },
   promptListItem: {
-    fontSize: 18,
-    marginBottom: 16,
-    lineHeight: 32,
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    marginBottom: Platform.select({ web: 16, default: 12 }),
+    lineHeight: Platform.select({ web: 32, default: 24 }),
     color: '#2c3e50',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    paddingBottom: 16,
+    paddingBottom: Platform.select({ web: 16, default: 12 }),
     fontFamily: "'PT Serif', serif",
   },
   footer: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    bottom: Platform.select({ web: 20, default: 16 }),
+    right: Platform.select({ web: 20, default: 16 }),
   },
   footerText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: Platform.select({ web: 14, default: 12 }),
     fontFamily: "'PT Serif', serif",
   },
   link: {
