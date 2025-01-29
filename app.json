@@ -19,6 +19,13 @@
     "web": {
       "bundler": "webpack",
       "head": {
+        "title": "Muse – Prompts for journaling",
+        "meta": [
+          {
+            "name": "description",
+            "content": "Journaling prompt generator."
+          }
+        ],
         "link": [
           {
             "rel": "stylesheet",
