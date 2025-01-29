@@ -1,25 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Platform, Linking, ScrollView } from 'react-native';
 import prompts from './prompts.md';
+import { Feather } from '@expo/vector-icons';
+import defaultPrompts from './prompts.md';
 
 export default function App() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
   const [allPrompts, setAllPrompts] = useState<string[]>([]);
   const [showAllPrompts, setShowAllPrompts] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [customFile, setCustomFile] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadPrompts();
+    loadPrompts(defaultPrompts);
   }, []);
 
-  const loadPrompts = () => {
+  const loadPrompts = (content: string) => {
     try {
-      const promptList = prompts
+      // First try bullet format
+      let promptList = content
         .split('\n')
         .filter(line => line.trim().startsWith('- '))
-        .map(line => line.substring(2).trim())
-        .filter(line => line.length > 0);
-      
-      console.log('Prompts loaded:', promptList);
+        .map(line => line.substring(2).trim());
+
+      // If no bullets found, try line-by-line
+      if (promptList.length === 0) {
+        promptList = content
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0);
+      }
       
       if (promptList.length === 0) {
         throw new Error('No prompts found in file');
@@ -33,9 +44,29 @@ export default function App() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      loadPrompts(text);
+      setCustomFile(file.name);
+    } catch (error) {
+      console.error('Error reading file:', error);
+      setCurrentPrompt('Error reading file: ' + error.message);
+    }
+  };
+
   const selectRandomPrompt = (prompts: string[]) => {
     const randomIndex = Math.floor(Math.random() * prompts.length);
     setCurrentPrompt(prompts[randomIndex]);
+  };
+
+  const copyPrompt = () => {
+    navigator.clipboard.writeText(currentPrompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -46,8 +77,34 @@ export default function App() {
             <View style={styles.card}>
               <View style={styles.redLine} />
               <Text style={styles.prompt}>{currentPrompt}</Text>
+              <TouchableOpacity 
+                style={styles.copyButton}
+                onPress={copyPrompt}
+              >
+                <Feather 
+                  name={copied ? "check" : "copy"} 
+                  size={20} 
+                  color="#2c3e50" 
+                  style={{ opacity: 0.6 }}
+                />
+                {copied && <Text style={styles.copyFeedback}>Copied!</Text>}
+              </TouchableOpacity>
             </View>
           </View>
+          {customFile && (
+            <Text style={styles.customFileText}>
+              Using prompts from: {customFile}{' '}
+              <Text 
+                style={styles.resetLink}
+                onPress={() => {
+                  loadPrompts(defaultPrompts);
+                  setCustomFile(null);
+                }}
+              >
+                (reset)
+              </Text>
+            </Text>
+          )}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.buttonLeft]}
@@ -60,6 +117,22 @@ export default function App() {
               onPress={() => setShowAllPrompts(true)}
             >
               <Text style={styles.buttonText}>Show All ☰</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.uploadContainer}>
+            <input
+              type="file"
+              accept=".md,.txt"
+              onChange={handleFileUpload}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+            />
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={() => fileInputRef.current?.click()}
+            >
+              <Feather name="upload" size={16} color="#666" style={{ marginRight: 8 }} />
+              <Text style={styles.uploadText}>Upload Prompts</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.footer}>
@@ -281,5 +354,62 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     cursor: 'pointer',
     fontFamily: "'PT Serif', serif",
+  },
+  copyButton: {
+    position: 'absolute',
+    bottom: Platform.select({ web: 16, default: 12 }),
+    right: Platform.select({ web: 16, default: 12 }),
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 249, 240, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  copyIcon: {
+    fontSize: Platform.select({ web: 22, default: 20 }),
+    opacity: 0.6,
+    cursor: 'pointer',
+    color: '#2c3e50',
+  },
+  copyFeedback: {
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    color: '#2c3e50',
+    opacity: 0.6,
+    fontFamily: "'PT Serif', serif",
+  },
+  uploadContainer: {
+    position: 'absolute',
+    bottom: Platform.select({ web: 20, default: 16 }),
+    left: Platform.select({ web: 20, default: 16 }),
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  uploadText: {
+    color: '#666',
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  customFileText: {
+    color: '#666',
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    fontFamily: "'PT Serif', serif",
+    textAlign: 'center',
+    marginBottom: 8,
+    opacity: 0.8,
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  resetLink: {
+    color: '#eb5757',
+    textDecorationLine: 'underline',
+    cursor: 'pointer',
   },
 }); 
