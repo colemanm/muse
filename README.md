@@ -74,4 +74,4 @@ MIT
 
 ## Sources
 
-Prompts from [this post]([text](https://www.reddit.com/r/Journaling/comments/r7bsmz/long_list_of_journal_prompts/)).
+Prompts from [this post](https://www.reddit.com/r/Journaling/comments/r7bsmz/long_list_of_journal_prompts/).
