@@ -1,9 +1,9 @@
-import GoogleAnalytics from './components/GoogleAnalytics';
-
 function App() {
   return (
     <>
-      <GoogleAnalytics />
+      {/* Remove this line */}
+      {/* <GoogleAnalytics /> */}
+      // ... rest of your app ...
     </>
   );
 }
