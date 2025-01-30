@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import { 
+  signInWithPopup,
+  signOut, 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  User
+} from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -9,30 +14,36 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      console.log('Auth state changed:', user?.email || 'No user');
+    console.log('Starting auth initialization...');
+
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user ? 'User logged in' : 'No user');
       setUser(user);
       setLoading(false);
     });
-    return unsubscribe;
+
+    return () => unsubscribe();
   }, []);
 
   const signIn = async () => {
-    console.log('Attempting sign in...');
     try {
-      setError(null);
+      console.log('Starting sign in process...');
       setLoading(true);
-      console.log('Opening Google popup...');
+      setError(null);
+      
+      // Configure additional OAuth parameters
+      googleProvider.setCustomParameters({
+        prompt: 'select_account',
+        login_hint: '',
+        redirect_uri: 'https://muse.colemanm.xyz/__/auth/handler'
+      });
+
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Sign in successful:', result.user.email);
     } catch (error: any) {
-      console.error('Error signing in:', error.code, error.message);
+      console.error('Error in sign in:', error);
       setError(error.message);
-      if (error.code === 'auth/popup-blocked') {
-        alert('Please allow popups for this site to sign in with Google');
-      } else if (error.code === 'auth/configuration-not-found') {
-        console.error('Firebase configuration error - check your settings');
-      }
     } finally {
       setLoading(false);
     }
@@ -42,7 +53,6 @@ export function useAuth() {
     try {
       setLoading(true);
       await signOut(auth);
-      console.log('Sign out successful');
     } catch (error: any) {
       console.error('Error signing out:', error);
       setError(error.message);

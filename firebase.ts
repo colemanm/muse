@@ -11,8 +11,12 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Debug logging
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Config Project ID:', firebaseConfig.projectId);
+
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider(); 
+export const googleProvider = new GoogleAuthProvider();

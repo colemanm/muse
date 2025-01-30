@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build": "expo export:web",
-    "vercel-build": "expo export:web"
+    "vercel-build": "cp .env.production .env && expo build:web"
   },
   "dependencies": {
     "@expo/webpack-config": "^19.0.0",
