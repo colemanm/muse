@@ -48,7 +48,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [currentListId, setCurrentListId] = useState('creativity');
+  const [currentListId, setCurrentListId] = useState('journaling');
 
   // Combine loading states
   const isLoading = authLoading || listsLoading;
@@ -103,7 +103,11 @@ export default function App() {
     try {
       const text = await file.text();
       loadPrompts(text);
-      setCustomFile(file.name);
+
+      // Extract title from H1 if present
+      const titleMatch = text.match(/^# (.+)/);
+      const listTitle = titleMatch ? titleMatch[1] : file.name;
+      setCustomFile(listTitle);
 
       // If user is logged in, automatically save the list
       if (user) {
@@ -119,7 +123,7 @@ export default function App() {
               .filter(line => line.length > 0 && !line.startsWith('#'));
           }
 
-          await savePromptList(file.name, prompts);
+          await savePromptList(listTitle, prompts);  // Use extracted title here
           await refreshLists();
         } catch (error) {
           console.error('Error auto-saving list:', error);
@@ -149,14 +153,24 @@ export default function App() {
   };
 
   return (
-    <View style={styles.container}>
+    <View 
+      style={[
+        styles.container,
+        { 
+          marginLeft: showSidebar ? 300 : 0,
+        }
+      ]}
+    >
       {/* Logo */}
       <View style={styles.logo}>
-        <Text style={styles.logoText}>
-          <Text style={styles.logoBrackets}>[</Text>
-          Muse
-          <Text style={styles.logoBrackets}>]</Text>
-        </Text>
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>
+            <Text style={styles.logoBrackets}>[</Text>
+            Muse
+            <Text style={styles.logoBrackets}>]</Text>
+          </Text>
+          <Text style={styles.logoTagline}>》 Prompts for writing</Text>
+        </View>
       </View>
 
       {isLoading ? (
@@ -205,7 +219,13 @@ export default function App() {
             <>
               <View style={styles.listContainer}>
                 <View style={styles.listCard}>
-                  <Text style={styles.listTitle}>All Prompts</Text>
+                  <View style={styles.listTitleContainer}>
+                    <Text style={styles.listTitle}>All Prompts</Text>
+                    <Text style={styles.listDivider}>•</Text>
+                    <Text style={styles.listSubtitle}>
+                      {customFile || builtInLists.find(list => list.id === currentListId)?.name}
+                    </Text>
+                  </View>
                   <ScrollView style={styles.scrollView}>
                     {allPrompts.map((prompt, index) => (
                       <Text key={index} style={styles.promptListItem}>
@@ -224,179 +244,180 @@ export default function App() {
             </>
           )}
 
-          {/* Sidebar toggle */}
-          {user && (
-            <TouchableOpacity 
-              style={styles.sidebarToggle}
-              onPress={toggleSidebar}
-            >
-              <Feather 
-                name={showSidebar ? "chevrons-right" : "list"} 
-                size={20} 
-                color="#666" 
-              />
-            </TouchableOpacity>
-          )}
-
-          {/* Sign in button */}
-          {!user && !isLoading && (
-            <TouchableOpacity 
-              style={styles.signInButton}
-              onPress={signIn}
-              disabled={isLoading}
-            >
-              <Feather name="log-in" size={16} color="#666" style={{ marginRight: 8 }} />
-              <Text style={styles.signInButtonText}>
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
           {/* Sidebar */}
-          {user && showSidebar && (
-            <View style={[styles.sidebar, showSidebar ? styles.sidebarVisible : styles.sidebarHidden]}>
-              {/* Logo at top */}
-              <View style={styles.sidebarHeader}>
-                <Text style={styles.logoText}>
-                  <Text style={styles.logoBrackets}>[</Text>
-                  Muse
-                  <Text style={styles.logoBrackets}>]</Text>
-                </Text>
-              </View>
-
-              {/* Built-in Lists selector */}
-              <View style={styles.sidebarListSelector}>
-                {builtInLists.map(list => (
-                  <TouchableOpacity
-                    key={list.id}
-                    style={[
-                      styles.sidebarListItem,
-                      currentListId === list.id && styles.sidebarListItemActive
-                    ]}
-                    onPress={() => {
-                      setCurrentListId(list.id);
-                      loadPrompts(list.content);
-                    }}
-                  >
-                    <Text 
-                      style={[
-                        styles.sidebarListItemText,
-                        currentListId === list.id && styles.sidebarListItemTextActive
-                      ]}
-                    >
-                      {list.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Custom Lists section */}
-              <Text style={styles.sidebarTitle}>Custom Lists</Text>
-              <ScrollView style={styles.sidebarScroll}>
-                {promptLists.map(list => (
-                  <View key={list.id} style={styles.sidebarItem}>
-                    {editingListId === list.id ? (
-                      <View style={styles.sidebarItemEdit}>
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          style={styles.sidebarItemInput}
-                          autoFocus
-                          onBlur={async () => {
-                            if (editingName.trim()) {
-                              try {
-                                await updatePromptList(list.id, { name: editingName.trim() });
-                                if (customFile === list.name) {
-                                  setCustomFile(editingName.trim());
-                                }
-                              } catch (error) {
-                                console.error('Error updating list name:', error);
-                              }
-                            }
-                            setEditingListId(null);
-                          }}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              e.currentTarget.blur();
-                            }
-                          }}
-                        />
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={[
-                          styles.sidebarItemContent,
-                          list.name === customFile && styles.sidebarItemActive
-                        ]}
-                        onPress={() => {
-                          loadPrompts(list.prompts.join('\n'));
-                          setCustomFile(list.name);
-                        }}
-                      >
-                        <View style={styles.sidebarItemRow}>
-                          {list.name === customFile && (
-                            <Feather 
-                              name="chevron-right" 
-                              size={14} 
-                              color="#eb5757" 
-                              style={{ marginRight: 8 }}
-                            />
-                          )}
-                          <Text style={styles.sidebarItemText}>{list.name}</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.sidebarItemEdit}
-                          onPress={() => {
-                            setEditingListId(list.id);
-                            setEditingName(list.name);
-                          }}
-                        >
-                          <Feather name="edit-2" size={14} color="#666" />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      style={styles.sidebarItemDelete}
-                      onPress={async () => {
-                        try {
-                          await deletePromptList(list.id);
-                          if (customFile === list.name) {
-                            loadPrompts(defaultPrompts);
-                            setCustomFile(null);
-                          }
-                        } catch (error) {
-                          console.error('Error deleting list:', error);
-                        }
-                      }}
-                    >
-                      <Feather name="trash-2" size={16} color="#eb5757" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </ScrollView>
-
-              {/* Footer section */}
-              <View style={styles.sidebarFooter}>
-                {/* Upload and Sign Out buttons */}
-                <TouchableOpacity
-                  style={styles.sidebarButton}
-                  onPress={() => fileInputRef.current?.click()}
-                >
-                  <Feather name="upload" size={16} color="#666" style={{ marginRight: 8 }} />
-                  <Text style={styles.sidebarButtonText}>Upload Prompts</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.sidebarButton, { marginTop: 8 }]}
-                  onPress={logOut}
-                >
-                  <Feather name="log-out" size={16} color="#666" style={{ marginRight: 8 }} />
-                  <Text style={styles.sidebarButtonText}>Sign Out</Text>
-                </TouchableOpacity>
-              </View>
+          <View style={styles.sidebar}>
+            {/* Logo at top */}
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.logoText}>
+                <Text style={styles.logoBrackets}>[</Text>
+                Muse
+                <Text style={styles.logoBrackets}>]</Text>
+              </Text>
             </View>
-          )}
+
+            {/* Built-in Lists selector */}
+            <View style={styles.sidebarListSelector}>
+              {builtInLists.map(list => (
+                <TouchableOpacity
+                  key={list.id}
+                  style={[
+                    styles.sidebarListItem,
+                    currentListId === list.id && styles.sidebarListItemActive
+                  ]}
+                  onPress={() => {
+                    setCurrentListId(list.id);
+                    loadPrompts(list.content);
+                    setCustomFile(null);
+                  }}
+                >
+                  <Text 
+                    style={[
+                      styles.sidebarListItemText,
+                      currentListId === list.id && styles.sidebarListItemTextActive
+                    ]}
+                  >
+                    {list.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Helper text - only show when not signed in */}
+            {!user && (
+              <Text style={styles.sidebarHelperText}>
+                Sign in to upload your own custom lists of prompts.
+              </Text>
+            )}
+
+            {/* Custom Lists section */}
+            {user && (
+              <>
+                <Text style={styles.sidebarTitle}>Custom Lists</Text>
+                <ScrollView style={styles.sidebarScroll}>
+                  {!listsLoading && promptLists.length === 0 ? (
+                    <Text style={styles.sidebarHelperText}>
+                      You have no custom lists. Upload some of your own below.
+                    </Text>
+                  ) : (
+                    promptLists.map(list => (
+                      <View key={list.id} style={styles.customListItem}>
+                        {editingListId === list.id ? (
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            style={styles.sidebarItemInput}
+                            autoFocus
+                            onBlur={async () => {
+                              if (editingName.trim()) {
+                                await updatePromptList(list.id, { name: editingName.trim() });
+                              }
+                              setEditingListId(null);
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            style={[
+                              styles.sidebarListItem,
+                              list.name === customFile && styles.sidebarListItemActive,
+                              { marginBottom: 0 }
+                            ]}
+                            onPress={() => {
+                              loadPrompts(list.prompts.join('\n'));
+                              setCustomFile(list.name);
+                              setCurrentListId('');
+                            }}
+                          >
+                            <View style={styles.customListContent}>
+                              <Text 
+                                style={[
+                                  styles.sidebarListItemText,
+                                  list.name === customFile && styles.sidebarListItemTextActive
+                                ]}
+                              >
+                                {list.name}
+                              </Text>
+                              <View style={styles.customListActions}>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setEditingListId(list.id);
+                                    setEditingName(list.name);
+                                  }}
+                                >
+                                  <Feather name="edit-2" size={14} color={list.name === customFile ? "#fff" : "#666"} style={{ marginRight: 8 }} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={async () => {
+                                    await deletePromptList(list.id);
+                                    if (customFile === list.name) {
+                                      loadPrompts(defaultPrompts);
+                                      setCustomFile(null);
+                                    }
+                                  }}
+                                >
+                                  <Feather name="trash-2" size={14} color={list.name === customFile ? "#fff" : "#666"} />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </>
+            )}
+
+            {/* Footer section */}
+            <View style={styles.sidebarFooter}>
+              {user ? (
+                <>
+                  {/* Upload and Sign Out buttons for signed in users */}
+                  <TouchableOpacity
+                    style={styles.sidebarButton}
+                    onPress={() => fileInputRef.current?.click()}
+                  >
+                    <Feather name="upload" size={16} color="#666" style={{ marginRight: 8 }} />
+                    <Text style={styles.sidebarButtonText}>Upload Prompts</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.sidebarButton, { marginTop: 8 }]}
+                    onPress={logOut}
+                  >
+                    <Feather name="log-out" size={16} color="#666" style={{ marginRight: 8 }} />
+                    <Text style={styles.sidebarButtonText}>Sign Out</Text>
+                  </TouchableOpacity>
+
+                  {/* Add the hidden file input */}
+                  <input
+                    type="file"
+                    accept=".md,.txt"
+                    onChange={handleFileUpload}
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                  />
+                </>
+              ) : (
+                // Sign in button for logged out users
+                <TouchableOpacity 
+                  style={styles.sidebarButton}
+                  onPress={signIn}
+                  disabled={isLoading}
+                >
+                  <Feather name="log-in" size={16} color="#666" style={{ marginRight: 8 }} />
+                  <Text style={styles.sidebarButtonText}>
+                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
           {/* Add footer back */}
           <View style={styles.footer}>
@@ -428,6 +449,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f8f8',
     padding: Platform.select({ web: 20, default: 16 }),
+    transition: 'margin-left 0.3s ease',
   },
   cardContainer: {
     flex: 1,
@@ -435,6 +457,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Platform.select({ web: 20, default: 16 }),
     paddingTop: Platform.select({ web: 40, default: 20 }),
+    width: '100%',
   },
   card: {
     backgroundColor: '#fff9f0',
@@ -545,12 +568,22 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  listTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: Platform.select({ web: 24, default: 20 }),
+  },
   listTitle: {
     fontSize: Platform.select({ web: 28, default: 24 }),
     fontWeight: 'bold',
     color: '#2c3e50',
-    textAlign: 'center',
-    marginBottom: Platform.select({ web: 24, default: 20 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  listSubtitle: {
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    color: '#666',
     fontFamily: "'PT Serif', serif",
   },
   promptListItem: {
@@ -667,17 +700,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: "'PT Serif', serif",
   },
-  sidebarToggle: {
-    position: 'absolute',
-    top: Platform.select({ web: 20, default: 16 }),
-    right: Platform.select({ web: 20, default: 16 }),
-    padding: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    zIndex: 100,
-  },
   sidebar: {
     position: 'fixed',
     top: 0,
@@ -692,67 +714,14 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
   },
-  sidebarVisible: {
-    transform: [{ translateX: 0 }],
+  sidebarHeader: {
+    paddingBottom: 20,
   },
-  sidebarHidden: {
-    transform: [{ translateX: '-100%' }],
-  },
-  sidebarTitle: {
-    fontSize: Platform.select({ web: 18, default: 16 }),
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 16,
-    fontFamily: "'PT Serif', serif",
-  },
-  sidebarScroll: {
-    flex: 1,
-  },
-  sidebarItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  sidebarItemContent: {
-    flex: 1,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 4,
-  },
-  sidebarItemActive: {
-    backgroundColor: 'rgba(235, 87, 87, 0.05)',
-  },
-  sidebarItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  sidebarItemEdit: {
-    marginLeft: 8,
-    opacity: 0.6,
-  },
-  sidebarItemInput: {
-    flex: 1,
-    padding: 8,
-    fontSize: Platform.select({ web: 16, default: 14 }),
-    fontFamily: "'PT Serif', serif",
-    color: '#2c3e50',
-    border: '1px solid #ddd',
-    borderRadius: 4,
-    backgroundColor: '#fff',
-    margin: 4,
-  },
-  sidebarItemDelete: {
-    padding: 12,
-    opacity: 0.7,
-  },
-  sidebarItemText: {
-    fontSize: Platform.select({ web: 16, default: 14 }),
-    color: '#2c3e50',
-    fontFamily: "'PT Serif', serif",
+  sidebarFooter: {
+    marginTop: 'auto',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
   sidebarButtons: {
     borderTopWidth: 1,
@@ -774,88 +743,47 @@ const styles = StyleSheet.create({
     fontSize: Platform.select({ web: 14, default: 12 }),
     fontFamily: "'PT Serif', serif",
   },
-  signInButton: {
-    position: 'absolute',
-    bottom: Platform.select({ web: 20, default: 16 }),
-    right: Platform.select({ web: 20, default: 16 }),
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    zIndex: 100,
-  },
-  signInButtonText: {
-    color: '#666',
-    fontSize: Platform.select({ web: 14, default: 12 }),
+  sidebarTitle: {
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 16,
     fontFamily: "'PT Serif', serif",
   },
-  loadingContainer: {
+  sidebarScroll: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  mainContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  customListItem: {
+    marginBottom: 8,
   },
-  controls: {
+  customListContent: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Platform.select({ web: 10, default: 8 }),
     width: '100%',
-    maxWidth: Platform.select({ web: 600, default: '100%' }),
-    marginBottom: Platform.select({ web: 20, default: 16 }),
+    paddingRight: 4,
   },
-  logo: {
-    position: 'fixed',
-    top: Platform.select({ web: 20, default: 16 }),
-    left: Platform.select({ web: 20, default: 16 }),
-    zIndex: 150,
-  },
-  logoText: {
-    fontFamily: "'Instrument Serif', 'PT Serif', serif",
-    fontSize: Platform.select({ web: 42, default: 36 }),
-    color: '#000000',
-    opacity: 1,
-  },
-  logoBrackets: {
-    color: '#b0b0b0',
-  },
-  sidebarHeader: {
-    paddingBottom: 20,
-  },
-  sidebarFooter: {
-    marginTop: 'auto',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  sidebarLinks: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+  customListActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sidebarListSelector: {
     flexDirection: 'column',
-    gap: 8,
+    gap: 0,
     marginBottom: 24,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   sidebarListItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
+    marginBottom: 8,  // Keep this for built-in lists only
   },
   sidebarListItemActive: {
     backgroundColor: '#eb5757',
@@ -868,5 +796,56 @@ const styles = StyleSheet.create({
   },
   sidebarListItemTextActive: {
     color: '#fff',
+  },
+  sidebarHelperText: {
+    color: '#666',
+    fontSize: 13,
+    fontFamily: "'PT Serif', serif",
+    textAlign: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+  },
+  logo: {
+    position: 'fixed',
+    top: Platform.select({ web: 20, default: 16 }),
+    left: Platform.select({ web: 20, default: 16 }),
+    zIndex: 150,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoText: {
+    fontFamily: "'Instrument Serif', 'PT Serif', serif",
+    fontSize: Platform.select({ web: 42, default: 36 }),
+    color: '#000000',
+    opacity: 1,
+  },
+  logoBrackets: {
+    color: '#b0b0b0',
+  },
+  logoTagline: {
+    fontFamily: "'Instrument Serif', 'PT Serif', serif",
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    color: '#666',
+    opacity: 0.8,
+  },
+  sidebarItemInput: {
+    flex: 1,
+    padding: 8,
+    fontSize: Platform.select({ web: 16, default: 14 }),
+    fontFamily: "'PT Serif', serif",
+    color: '#2c3e50',
+    border: '1px solid #ddd',
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    margin: 4,
+  },
+  listDivider: {
+    color: '#666',
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    opacity: 0.5,
+    fontFamily: "'PT Serif', serif",
   },
 }); 
