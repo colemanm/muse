@@ -14,12 +14,10 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Starting auth initialization...');
-
-    // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Auth state changed:', user ? 'User logged in' : 'No user');
-      setUser(user);
+    // Just need auth state listener, no redirect handling
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log('Auth state changed:', currentUser?.email || 'No user');
+      setUser(currentUser);
       setLoading(false);
     });
 
@@ -28,21 +26,19 @@ export function useAuth() {
 
   const signIn = async () => {
     try {
-      console.log('Starting sign in process...');
+      console.log('Starting sign in...');
       setLoading(true);
       setError(null);
-      
-      // Configure additional OAuth parameters
+
       googleProvider.setCustomParameters({
-        prompt: 'select_account',
-        login_hint: '',
-        redirect_uri: 'https://muse.colemanm.xyz/__/auth/handler'
+        prompt: 'select_account'
       });
 
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Sign in successful:', result.user.email);
+      setUser(result.user);
     } catch (error: any) {
-      console.error('Error in sign in:', error);
+      console.error('Sign in error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -53,8 +49,9 @@ export function useAuth() {
     try {
       setLoading(true);
       await signOut(auth);
+      setUser(null);
     } catch (error: any) {
-      console.error('Error signing out:', error);
+      console.error('Sign out error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
