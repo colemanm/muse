@@ -1,0 +1,41 @@
+# Anxiety
+
+- What are the specific situations that trigger my anxiety the most?
+- How does my body physically respond when I feel anxious?
+- What is my earliest memory of feeling anxious?
+- What are three things I can do to calm myself when I feel anxious?
+- How does anxiety impact my daily life and decision-making?
+- What are the underlying thoughts that fuel my anxiety?
+- How do I typically react to stress, and how could I respond differently?
+- What patterns do I notice in my anxious thoughts?
+- How has my relationship with anxiety changed over time?
+- What role does uncertainty play in my anxiety?
+- How do I differentiate between helpful concern and unproductive worry?
+- What advice would I give a friend who is feeling anxious?
+- What are some positive coping mechanisms I’ve used in the past?
+- How does my environment influence my anxiety levels?
+- What is something I fear that has never actually happened?
+- How does my inner critic contribute to my anxiety?
+- What small step can I take today to reduce my anxiety?
+- What would my life look like if I didn’t struggle with anxiety?
+- What strengths have I developed as a result of dealing with anxiety?
+- How does social media affect my anxiety levels?
+- What does my anxiety try to protect me from?
+- What self-care practices help me manage my anxiety?
+- How do I talk to myself when I’m feeling anxious?
+- What is a past situation where I handled anxiety well?
+- How do my expectations for myself contribute to my anxiety?
+- What beliefs about myself feed into my anxiety?
+- How does perfectionism relate to my anxiety?
+- What would it feel like to let go of some of my worries?
+- How do my daily habits influence my overall anxiety levels?
+- What is one thing I can change in my routine to reduce anxiety?
+- How do I know when my anxiety is becoming overwhelming?
+- What does my anxiety teach me about myself?
+- How do I typically distract myself from anxiety, and is it helpful?
+- What affirmations or reminders can I use when I feel anxious?
+- How do I feel about uncertainty, and why?
+- What would it mean to fully accept my anxious thoughts without resistance?
+- How can I show myself compassion when I feel anxious?
+- What is something I can do today to bring myself a sense of calm?
+- What are three things I’m grateful for, even in the midst of anxiety?

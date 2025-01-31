@@ -1,0 +1,41 @@
+# Daily Reflection
+
+- What is one thing I learned today?
+- How did I take care of myself today?
+- What was the most meaningful moment of my day?
+- What emotions stood out to me today, and why?
+- What is something I could have handled differently today?
+- What is one thing I accomplished today that I’m proud of?
+- How did I step outside my comfort zone today?
+- What challenged me today, and how did I respond?
+- Who or what made me feel grateful today?
+- What is something I noticed today that I usually overlook?
+- How did I practice patience or kindness today?
+- What thoughts occupied my mind the most today?
+- What is one small joy I experienced today?
+- How did I make progress toward a personal goal today?
+- What is something I would like to improve about myself based on today?
+- How did I respond to stress or frustration today?
+- What was the best conversation I had today?
+- What surprised me today?
+- What was a moment today when I felt truly present?
+- What do I need to let go of before tomorrow?
+- What did I do today that aligns with my core values?
+- How did I support or help someone today?
+- What is one way I can make tomorrow better?
+- How did I challenge a negative thought today?
+- What is one habit I reinforced or broke today?
+- How did I use my time wisely today?
+- What inspired me today?
+- What was the most peaceful part of my day?
+- What lesson can I take from today into the future?
+- How did I practice gratitude today?
+- What is one thing I can celebrate about today?
+- How did I take a step toward a long-term goal today?
+- What would I tell my future self about today?
+- How did I manage my energy levels today?
+- What is something I wish I had done differently today?
+- What motivated me the most today?
+- How did I show up for myself today?
+- What was the most unexpected moment of my day?
+- How did I practice self-discipline today?

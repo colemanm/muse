@@ -1,0 +1,41 @@
+# Work and Business
+
+- What was the most important task I accomplished today?
+- What challenges did I face at work today, and how did I handle them?
+- How did I contribute to my team’s success today?
+- What is one lesson I learned from my work today?
+- What could I have done more efficiently today?
+- How did I prioritize my time and tasks today?
+- What decision did I make today that will impact the future?
+- What feedback did I receive today, and how can I use it?
+- What was my biggest win at work today?
+- How did I add value to my business or team today?
+- What is one skill I used effectively at work today?
+- How did I handle distractions or interruptions today?
+- What was the most rewarding part of my workday?
+- How did I support a colleague or employee today?
+- What was the biggest obstacle in my work today, and how did I navigate it?
+- How did I practice leadership or take initiative today?
+- What opportunities for improvement did I notice in my work today?
+- How did I push a project forward today?
+- What assumptions did I challenge in my work today?
+- What was my energy level like throughout the workday, and how did it affect my performance?
+- What work-related decision am I currently unsure about?
+- How did I maintain focus and productivity today?
+- What did I delegate today, and how did it go?
+- What was the most unexpected thing that happened at work today?
+- How did I align my work with long-term goals today?
+- What work-related habit do I need to improve?
+- How did I adapt to changes or surprises in my work today?
+- What professional connection or conversation stood out to me today?
+- How did I balance deep work and administrative tasks today?
+- How did I handle a difficult conversation or negotiation today?
+- What did I do today that will make tomorrow easier?
+- What was my biggest insight about my industry or business today?
+- What small success from today will compound over time?
+- How did I challenge the status quo in my work today?
+- What is one thing I need to follow up on tomorrow?
+- How did I contribute to a positive work environment today?
+- What was my biggest time-waster today, and how can I reduce it?
+- How did I demonstrate resilience or adaptability in my work today?
+- What unfinished work is weighing on my mind, and how can I resolve it?
