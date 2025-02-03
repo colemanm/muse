@@ -67,10 +67,9 @@ MIT
 
 ## Future Features
 
-- Mark a prompt as "used"
-- Add a "last used" timestamp to each prompt
-- When randomly selecting a prompt, select only from prompts not used in the last 30 days
-- Add your own topics or themes, then use an LLM to generate prompts for each topic, and save them to a custom list
+- [ ] Add a "last used" timestamp to each prompt
+- [ ] When randomly selecting a prompt, select only from prompts not used in the last 30 days
+- [ ] Add your own topics or themes, then use an LLM to generate prompts for each topic, and save them to a custom list
 
 ## Sources
 

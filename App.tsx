@@ -29,6 +29,18 @@ const builtInLists: BuiltInList[] = promptContext.keys().map(path => {
   };
 });
 
+type Prompt = {
+  text: string;
+  lastUsed?: string;  // ISO timestamp
+};
+
+type PromptList = {
+  id: string;
+  name: string;
+  prompts: Prompt[];
+  userId: string;
+};
+
 export default function App() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
   const [allPrompts, setAllPrompts] = useState<string[]>([]);
@@ -49,6 +61,11 @@ export default function App() {
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [currentListId, setCurrentListId] = useState('journaling');
+  const [editingPromptIndex, setEditingPromptIndex] = useState<number | null>(null);
+  const [editingPromptText, setEditingPromptText] = useState('');
+  const [savingPromptIndex, setSavingPromptIndex] = useState<number | null>(null);
+  const [deletingPromptIndex, setDeletingPromptIndex] = useState<number | null>(null);
+  const [markedUsed, setMarkedUsed] = useState(false);
 
   // Combine loading states
   const isLoading = authLoading || listsLoading;
@@ -65,32 +82,53 @@ export default function App() {
     }
   }, []);
 
-  const loadPrompts = (content: string) => {
+  const loadPrompts = (content: string | Prompt[] | any[]) => {
     try {
-      let lines = content.split('\n');
-      let title = '';
-      let promptList: string[] = [];
+      if (Array.isArray(content)) {
+        // Handle array from Firestore
+        const promptTexts = content.map(p => {
+          if (typeof p === 'string') return p;
+          // Handle Firestore object format
+          if (p && typeof p === 'object') {
+            return p.text || '';
+          }
+          return '';
+        }).filter(text => text.length > 0);
+        
+        setAllPrompts(promptTexts);
+        selectRandomPrompt(promptTexts);
+      } else {
+        // Handle markdown string
+        // Split content at horizontal rule
+        const [promptSection, _sourceSection] = content.split('\n---\n');
+        let lines = promptSection.split('\n');
+        let title = '';
+        let promptList: string[] = [];
 
-      // Extract title from H1
-      const titleMatch = lines[0].match(/^# (.+)/);
-      if (titleMatch) {
-        title = titleMatch[1];
-        lines = lines.slice(1); // Remove title line
-      }
+        // Extract title from H1
+        const titleMatch = lines[0].match(/^# (.+)/);
+        if (titleMatch) {
+          title = titleMatch[1];
+          lines = lines.slice(1);
+        }
 
-      // Parse prompts as before...
-      promptList = lines
-        .filter(line => line.trim().startsWith('- '))
-        .map(line => line.substring(2).trim());
-
-      if (promptList.length === 0) {
+        // Parse prompts with both - and * bullets
         promptList = lines
-          .map(line => line.trim())
-          .filter(line => line.length > 0 && !line.startsWith('#'));
+          .filter(line => {
+            const trimmed = line.trim();
+            return trimmed.startsWith('-') || trimmed.startsWith('*');
+          })
+          .map(line => line.substring(2).trim());
+
+        if (promptList.length === 0) {
+          promptList = lines
+            .map(line => line.trim())
+            .filter(line => line.length > 0 && !line.startsWith('#'));
+        }
+        
+        setAllPrompts(promptList);
+        selectRandomPrompt(promptList);
       }
-      
-      setAllPrompts(promptList);
-      selectRandomPrompt(promptList);
     } catch (error) {
       console.error('Error loading prompts:', error);
     }
@@ -114,7 +152,10 @@ export default function App() {
         try {
           // Use the same parsing logic as loadPrompts
           let prompts = text.split('\n')
-            .filter(line => line.trim().startsWith('- '))
+            .filter(line => {
+              const trimmed = line.trim();
+              return trimmed.startsWith('-') || trimmed.startsWith('*');
+            })
             .map(line => line.substring(2).trim());
 
           if (prompts.length === 0) {
@@ -123,7 +164,7 @@ export default function App() {
               .filter(line => line.length > 0 && !line.startsWith('#'));
           }
 
-          await savePromptList(listTitle, prompts);  // Use extracted title here
+          await savePromptList(listTitle, prompts);
           await refreshLists();
         } catch (error) {
           console.error('Error auto-saving list:', error);
@@ -150,6 +191,21 @@ export default function App() {
     const newState = !showSidebar;
     setShowSidebar(newState);
     localStorage.setItem('sidebarVisible', String(newState));
+  };
+
+  const formatLastUsed = (timestamp: string | null) => {
+    if (!timestamp) return '';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -185,18 +241,72 @@ export default function App() {
                 <View style={styles.card}>
                   <View style={styles.redLine} />
                   <Text style={styles.prompt}>{currentPrompt}</Text>
-                  <TouchableOpacity 
-                    style={styles.copyButton}
-                    onPress={copyPrompt}
-                  >
-                    <Feather 
-                      name={copied ? "check" : "copy"} 
-                      size={20} 
-                      color="#2c3e50" 
-                      style={{ opacity: 0.6 }}
-                    />
-                    {copied && <Text style={styles.copyFeedback}>Copied!</Text>}
-                  </TouchableOpacity>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={copyPrompt}
+                    >
+                      <Feather 
+                        name={copied ? "check" : "copy"} 
+                        size={20} 
+                        color="#2c3e50" 
+                        style={{ opacity: 0.6 }}
+                      />
+                      {copied && <Text style={styles.actionFeedback}>Copied!</Text>}
+                    </TouchableOpacity>
+
+                    {customFile && (
+                      <TouchableOpacity 
+                        style={styles.actionButton}
+                        onPress={async () => {
+                          const currentList = promptLists.find(list => list.name === customFile);
+                          if (currentList) {
+                            try {
+                              // Show success state immediately
+                              setMarkedUsed(true);
+
+                              // Create a map of existing lastUsed values
+                              const existingLastUsed = new Map(
+                                currentList.prompts
+                                  .filter(p => typeof p === 'object' && p.text && p.lastUsed)
+                                  .map(p => [p.text, p.lastUsed])
+                              );
+
+                              // Update prompts while preserving existing lastUsed values
+                              const updatedPrompts = allPrompts.map(promptText => ({
+                                text: promptText,
+                                lastUsed: promptText === currentPrompt ? 
+                                  new Date().toISOString() : 
+                                  existingLastUsed.get(promptText) || null
+                              }));
+
+                              // Update database with new format
+                              await updatePromptList(currentList.id, { prompts: updatedPrompts });
+                              
+                              // Wait a moment, then get next prompt
+                              setTimeout(() => {
+                                setMarkedUsed(false);
+                                selectRandomPrompt(allPrompts);
+                              }, 800);
+                            } catch (error) {
+                              console.error('Error updating prompt:', error);
+                              setMarkedUsed(false);
+                            }
+                          }
+                        }}
+                      >
+                        <Feather 
+                          name="check-circle" 
+                          size={20} 
+                          color={markedUsed ? "#34a853" : "#2c3e50"} 
+                          style={{ 
+                            opacity: markedUsed ? 1 : 0.6,
+                            transition: 'all 0.2s ease'
+                          }} 
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
 
@@ -220,19 +330,231 @@ export default function App() {
               <View style={styles.listContainer}>
                 <View style={styles.listCard}>
                   <View style={styles.listTitleContainer}>
-                    <Text style={styles.listTitle}>All Prompts</Text>
-                    <Text style={styles.listDivider}>•</Text>
                     <Text style={styles.listSubtitle}>
                       {customFile || builtInLists.find(list => list.id === currentListId)?.name}
                     </Text>
+                    <Text style={styles.listDivider}>•</Text>
+                    <Text style={styles.listCount}>{allPrompts.length} prompts</Text>
                   </View>
+                  
                   <ScrollView style={styles.scrollView}>
-                    {allPrompts.map((prompt, index) => (
-                      <Text key={index} style={styles.promptListItem}>
-                        {prompt}
-                      </Text>
-                    ))}
+                    {editingPromptIndex === -1 && (
+                      <View style={styles.promptListItemContainer}>
+                        <View style={styles.promptEditContainer}>
+                          <textarea
+                            value={editingPromptText}
+                            onChange={(e) => setEditingPromptText(e.target.value)}
+                            style={styles.promptItemInput}
+                            autoFocus
+                            placeholder="Type your new prompt here..."
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && e.metaKey) {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
+                          <View style={styles.promptEditActions}>
+                            <TouchableOpacity
+                              style={[
+                                styles.promptEditButton,
+                                savingPromptIndex === -1 && styles.promptEditButtonSaving
+                              ]}
+                              onPress={async () => {
+                                if (editingPromptText.trim()) {
+                                  setSavingPromptIndex(-1);
+                                  
+                                  try {
+                                    // Hide edit box first
+                                    setEditingPromptIndex(null);
+                                    
+                                    const updatedPrompts = [...allPrompts, editingPromptText.trim()];
+                                    const currentList = promptLists.find(list => list.name === customFile);
+                                    if (currentList) {
+                                      await updatePromptList(currentList.id, { prompts: updatedPrompts });
+                                    }
+                                    
+                                    // Brief delay before updating UI
+                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    setAllPrompts(updatedPrompts);
+                                    
+                                    // Show success state
+                                    await new Promise(resolve => setTimeout(resolve, 400));
+                                  } finally {
+                                    setSavingPromptIndex(null);
+                                  }
+                                } else {
+                                  setEditingPromptIndex(null);
+                                }
+                              }}
+                            >
+                              <Feather 
+                                name={savingPromptIndex === -1 ? "check" : "save"} 
+                                size={14} 
+                                color="#666" 
+                              />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.promptEditButton}
+                              onPress={() => {
+                                setEditingPromptIndex(null);
+                                setEditingPromptText('');
+                              }}
+                            >
+                              <Feather name="x" size={14} color="#666" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    {allPrompts
+                      .map((prompt, index) => ({
+                        text: prompt,
+                        lastUsed: promptLists.find(list => list.name === customFile)
+                          ?.prompts?.find(p => typeof p === 'object' && p.text === prompt)
+                          ?.lastUsed || null,
+                        index
+                      }))
+                      .sort((a, b) => {
+                        // Put null (never used) at the top
+                        if (!a.lastUsed && !b.lastUsed) return 0;
+                        if (!a.lastUsed) return -1;
+                        if (!b.lastUsed) return 1;
+                        
+                        // Sort by date ascending (oldest to newest)
+                        return new Date(a.lastUsed).getTime() - new Date(b.lastUsed).getTime();
+                      })
+                      .map(({ text, lastUsed, index }) => (
+                        <View key={index} style={styles.promptListItemContainer}>
+                          {editingPromptIndex === index ? (
+                            <View style={styles.promptEditContainer}>
+                              <textarea
+                                value={editingPromptText}
+                                onChange={(e) => setEditingPromptText(e.target.value)}
+                                style={styles.promptItemInput}
+                                autoFocus
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter' && e.metaKey) {
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                              />
+                              <View style={styles.promptEditActions}>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.promptEditButton,
+                                    savingPromptIndex === index && styles.promptEditButtonSaving
+                                  ]}
+                                  onPress={async () => {
+                                    if (editingPromptText.trim()) {
+                                      setSavingPromptIndex(index);
+                                      const updatedPrompts = [...allPrompts];
+                                      updatedPrompts[index] = editingPromptText.trim();
+                                      
+                                      try {
+                                        const currentList = promptLists.find(list => list.name === customFile);
+                                        if (currentList) {
+                                          await updatePromptList(currentList.id, { prompts: updatedPrompts });
+                                        }
+                                        setAllPrompts(updatedPrompts);
+                                        
+                                        // Brief delay to show success state
+                                        await new Promise(resolve => setTimeout(resolve, 500));
+                                      } finally {
+                                        setSavingPromptIndex(null);
+                                        setEditingPromptIndex(null);
+                                      }
+                                    } else {
+                                      setEditingPromptIndex(null);
+                                    }
+                                  }}
+                                >
+                                  <Feather 
+                                    name={savingPromptIndex === index ? "check" : "save"} 
+                                    size={14} 
+                                    color="#666" 
+                                  />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  style={styles.promptEditButton}
+                                  onPress={() => {
+                                    setEditingPromptIndex(null);
+                                    setEditingPromptText('');
+                                  }}
+                                >
+                                  <Feather name="x" size={14} color="#666" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ) : (
+                            <>
+                              <View style={styles.promptListItemContent}>
+                                <Text style={styles.promptListItem}>
+                                  {text}
+                                </Text>
+                                {customFile && (
+                                  <Text style={styles.lastUsedText}>
+                                    {formatLastUsed(lastUsed)}
+                                  </Text>
+                                )}
+                              </View>
+                              {customFile && (
+                                <View style={styles.promptItemActions}>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setEditingPromptIndex(index);
+                                      setEditingPromptText(text);
+                                    }}
+                                  >
+                                    <Feather name="edit-2" size={14} color="#666" style={{ marginRight: 8 }} />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={async () => {
+                                      if (deletingPromptIndex === index) {
+                                        // Second click - actually delete
+                                        const updatedPrompts = allPrompts.filter((_, i) => i !== index);
+                                        setAllPrompts(updatedPrompts);
+                                        
+                                        const currentList = promptLists.find(list => list.name === customFile);
+                                        if (currentList) {
+                                          await updatePromptList(currentList.id, { prompts: updatedPrompts });
+                                        }
+                                        setDeletingPromptIndex(null);
+                                      } else {
+                                        // First click - show confirmation
+                                        setDeletingPromptIndex(index);
+                                        // Reset after 3 seconds if not confirmed
+                                        setTimeout(() => setDeletingPromptIndex(null), 3000);
+                                      }
+                                    }}
+                                  >
+                                    <Feather 
+                                      name={deletingPromptIndex === index ? "x" : "trash-2"} 
+                                      size={14} 
+                                      color={deletingPromptIndex === index ? "#eb5757" : "#666"} 
+                                      style={deletingPromptIndex === index ? { fontWeight: 'bold' } : undefined}
+                                    />
+                                  </TouchableOpacity>
+                                </View>
+                              )}
+                            </>
+                          )}
+                        </View>
+                      ))}
                   </ScrollView>
+
+                  {customFile && editingPromptIndex === null && (
+                    <TouchableOpacity
+                      style={styles.addPromptButtonBottom}
+                      onPress={() => {
+                        setEditingPromptIndex(-1);
+                        setEditingPromptText('');
+                      }}
+                    >
+                      <Text style={styles.addPromptText}>New Prompt</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
               <TouchableOpacity
@@ -328,7 +650,7 @@ export default function App() {
                               { marginBottom: 0 }
                             ]}
                             onPress={() => {
-                              loadPrompts(list.prompts.join('\n'));
+                              loadPrompts(list.prompts);
                               setCustomFile(list.name);
                               setCurrentListId('');
                             }}
@@ -575,26 +897,33 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: Platform.select({ web: 24, default: 20 }),
   },
-  listTitle: {
-    fontSize: Platform.select({ web: 28, default: 24 }),
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    fontFamily: "'PT Serif', serif",
-  },
   listSubtitle: {
-    fontSize: Platform.select({ web: 18, default: 16 }),
-    color: '#666',
-    fontFamily: "'PT Serif', serif",
-  },
-  promptListItem: {
-    fontSize: Platform.select({ web: 18, default: 16 }),
-    marginBottom: Platform.select({ web: 16, default: 12 }),
-    lineHeight: Platform.select({ web: 32, default: 24 }),
+    fontSize: Platform.select({ web: 28, default: 24 }),
     color: '#2c3e50',
+    fontFamily: "'PT Serif', serif",
+    fontWeight: 'bold',
+  },
+  promptListItemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     paddingBottom: Platform.select({ web: 16, default: 12 }),
+    marginBottom: Platform.select({ web: 16, default: 12 }),
+  },
+  promptListItemContent: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: 4,
+  },
+  promptListItem: {
+    flex: 1,
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    lineHeight: Platform.select({ web: 32, default: 24 }),
+    color: '#2c3e50',
     fontFamily: "'PT Serif', serif",
+    paddingRight: 16,
   },
   footer: {
     position: 'fixed',
@@ -847,5 +1176,112 @@ const styles = StyleSheet.create({
     fontSize: Platform.select({ web: 18, default: 16 }),
     opacity: 0.5,
     fontFamily: "'PT Serif', serif",
+  },
+  listCount: {
+    color: '#999',
+    fontSize: Platform.select({ web: 16, default: 14 }),
+    fontFamily: "'PT Serif', serif",
+  },
+  promptItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    opacity: 0.8,
+  },
+  promptItemInput: {
+    flex: 1,
+    padding: 8,
+    fontSize: Platform.select({ web: 18, default: 16 }),
+    lineHeight: '1.4',
+    fontFamily: "'PT Serif', serif",
+    color: '#2c3e50',
+    border: '1px solid #ddd',
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    height: '80px',
+    resize: 'none',
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
+    width: '100%',
+    display: 'block',
+    overflowY: 'auto',
+  },
+  promptEditContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  promptEditActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  promptEditButton: {
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    transition: 'all 0.2s ease',
+  },
+  promptEditButtonSaving: {
+    backgroundColor: '#e6f4ea',
+    borderColor: '#34a853',
+  },
+  addPromptButtonBottom: {
+    backgroundColor: '#4a90e2',  // Nice shade of blue
+    padding: Platform.select({ web: 15, default: 12 }),
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+    marginTop: 24,
+    alignSelf: 'center',
+    minWidth: Platform.select({ web: 200, default: 180 }),
+  },
+  addPromptText: {
+    color: '#fff',
+    fontSize: Platform.select({ web: 16, default: 15 }),
+    fontWeight: 'bold',
+    fontFamily: "'PT Serif', serif",
+  },
+  cardActions: {
+    position: 'absolute',
+    bottom: Platform.select({ web: 16, default: 12 }),
+    right: Platform.select({ web: 16, default: 12 }),
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 249, 240, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionFeedback: {
+    fontSize: Platform.select({ web: 14, default: 12 }),
+    color: '#2c3e50',
+    opacity: 0.6,
+    fontFamily: "'PT Serif', serif",
+  },
+  actionButtonSuccess: {
+    backgroundColor: '#e6f4ea',
+    borderColor: '#34a853',
+  },
+  lastUsedText: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: "'PT Serif', serif",
+    fontStyle: 'italic',
   },
 }); 
