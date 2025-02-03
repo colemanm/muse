@@ -83,9 +83,22 @@ export function usePromptLists(userId: string | null) {
     return docRef.id;
   };
 
-  const deletePromptList = async (listId: string) => {
-    await deleteDoc(doc(db, 'promptLists', listId));
-    await loadPromptLists(); // Refresh lists after deleting
+  const deletePromptList = async (listId: string): Promise<boolean> => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to delete this list? This action cannot be undone.');
+    
+    if (!confirmed) {
+      return false;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'promptLists', listId));
+      await loadPromptLists(); // Refresh lists after deleting
+      return true;
+    } catch (error) {
+      console.error('Error deleting prompt list:', error);
+      return false;
+    }
   };
 
   const updatePromptList = async (listId: string, updates: { 

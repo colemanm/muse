@@ -44,15 +44,6 @@ npm install -g vercel
 vercel
 ```
 
-## Project Structure
-
-- `App.tsx` - Main application component
-- `prompts.md` - Collection of journaling prompts
-- `webpack.config.js` - Webpack configuration for handling markdown files
-- `custom.d.ts` - TypeScript declarations
-- `app.json` - Expo configuration
-- `vercel.json` - Vercel deployment configuration
-
 ## License
 
 MIT
