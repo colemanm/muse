@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 interface PromptList {
   id: string;
@@ -42,16 +42,17 @@ export function usePromptLists(userId: string | null) {
 
   const savePromptList = async (name: string, prompts: string[]) => {
     if (!userId) return;
-
-    const newList = {
+    
+    // Convert string array to Prompt objects
+    const promptObjects = prompts.map(text => ({ text }));
+    
+    const docRef = await addDoc(collection(db, 'promptLists'), {
       name,
-      prompts,
+      prompts: promptObjects,
       userId,
-      createdAt: new Date()
-    };
-
-    const docRef = await addDoc(collection(db, 'promptLists'), newList);
-    await loadPromptLists(); // Refresh lists after saving
+      createdAt: serverTimestamp(),
+    });
+    
     return docRef.id;
   };
 
@@ -60,9 +61,14 @@ export function usePromptLists(userId: string | null) {
     await loadPromptLists(); // Refresh lists after deleting
   };
 
-  const updatePromptList = async (listId: string, updates: Partial<Omit<PromptList, 'id'>>) => {
-    await updateDoc(doc(db, 'promptLists', listId), updates);
-    await loadPromptLists();
+  const updatePromptList = async (listId: string, updates: { 
+    name?: string, 
+    prompts?: Prompt[] 
+  }) => {
+    if (!userId) return;
+    
+    const docRef = doc(db, 'promptLists', listId);
+    await updateDoc(docRef, updates);
   };
 
   return { 
