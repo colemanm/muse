@@ -1,18 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+
+interface Prompt {
+  id: string;
+  text: string;
+  category?: string;
+}
 
 interface PromptList {
   id: string;
   name: string;
-  prompts: string[];
+  prompts: Prompt[];
   userId: string;
   createdAt: Date;
+}
+
+interface PromptUsage {
+  promptId: string;
+  usedCount: number;
+  lastUsed?: Date;
 }
 
 export function usePromptLists(userId: string | null) {
   const [promptLists, setPromptLists] = useState<PromptList[]>([]);
   const [loading, setLoading] = useState(true);
+  const [promptUsage, setPromptUsage] = useState<PromptUsage[]>([]);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
 
   const loadPromptLists = async () => {
     if (!userId) {
@@ -32,6 +46,15 @@ export function usePromptLists(userId: string | null) {
       ...doc.data()
     } as PromptList));
     
+    // Extract all prompts from the lists
+    const allPrompts = lists.flatMap(list => 
+      list.prompts.map(prompt => ({
+        ...prompt,
+        id: typeof prompt === 'string' ? prompt : prompt.id || prompt.text
+      }))
+    );
+    
+    setPrompts(allPrompts);
     setPromptLists(lists);
     setLoading(false);
   };
@@ -40,11 +63,14 @@ export function usePromptLists(userId: string | null) {
     loadPromptLists();
   }, [userId]);
 
-  const savePromptList = async (name: string, prompts: string[]) => {
+  const savePromptList = async (name: string, promptTexts: string[]) => {
     if (!userId) return;
     
     // Convert string array to Prompt objects
-    const promptObjects = prompts.map(text => ({ text }));
+    const promptObjects = promptTexts.map(text => ({
+      id: crypto.randomUUID(), // Generate unique IDs for new prompts
+      text,
+    }));
     
     const docRef = await addDoc(collection(db, 'promptLists'), {
       name,
@@ -53,6 +79,7 @@ export function usePromptLists(userId: string | null) {
       createdAt: serverTimestamp(),
     });
     
+    await loadPromptLists(); // Refresh to update prompts state
     return docRef.id;
   };
 
@@ -71,12 +98,73 @@ export function usePromptLists(userId: string | null) {
     await updateDoc(docRef, updates);
   };
 
+  const getRandomPrompt = useCallback((category?: string) => {
+    if (!prompts.length) return null;
+    
+    let availablePrompts = category 
+      ? prompts.filter(p => p.category === category)
+      : prompts;
+
+    // First, try to find prompts that have never been used
+    const unusedPrompts = availablePrompts.filter(prompt => 
+      !promptUsage.some(usage => usage.promptId === prompt.id)
+    );
+
+    if (unusedPrompts.length > 0) {
+      // If there are unused prompts, randomly select from those
+      const randomIndex = Math.floor(Math.random() * unusedPrompts.length);
+      const selectedPrompt = unusedPrompts[randomIndex];
+      
+      // Track the usage
+      setPromptUsage(prev => [...prev, {
+        promptId: selectedPrompt.id,
+        usedCount: 1,
+        lastUsed: new Date()
+      }]);
+      
+      return selectedPrompt;
+    }
+
+    // If all prompts have been used, fall back to random selection
+    // but favor less frequently used prompts
+    const weightedPrompts = availablePrompts.map(prompt => {
+      const usage = promptUsage.find(u => u.promptId === prompt.id);
+      const weight = usage ? 1 / (usage.usedCount + 1) : 1;
+      return { prompt, weight };
+    });
+
+    const totalWeight = weightedPrompts.reduce((sum, p) => sum + p.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const { prompt, weight } of weightedPrompts) {
+      random -= weight;
+      if (random <= 0) {
+        // Update usage for the selected prompt
+        setPromptUsage(prev => {
+          const existing = prev.find(u => u.promptId === prompt.id);
+          if (existing) {
+            return prev.map(u => u.promptId === prompt.id 
+              ? { ...u, usedCount: u.usedCount + 1, lastUsed: new Date() }
+              : u
+            );
+          }
+          return [...prev, { promptId: prompt.id, usedCount: 1, lastUsed: new Date() }];
+        });
+        
+        return prompt;
+      }
+    }
+
+    return availablePrompts[0]; // Fallback, should never reach here
+  }, [prompts, promptUsage]);
+
   return { 
     promptLists, 
     loading, 
     savePromptList, 
     deletePromptList,
     updatePromptList,
-    refreshLists: loadPromptLists 
+    refreshLists: loadPromptLists,
+    getRandomPrompt
   };
 } 
