@@ -2,7 +2,7 @@
 
 A journaling prompt generator built with React Native and Expo.
 
-Prompts live in the `prompts.md` file in the root directory. Edit this file to include or replace with your own prompts.
+Prompts live in the `prompts` directory. The app will load any of these files in the default prompts list in the sidebar. See [this list](https://github.com/colemanm/muse/blob/main/prompts/40-questions.md)) as an example of how to format your own files.
 
 ## Installation
 
@@ -16,7 +16,6 @@ cd muse
 ```bash
 npm install
 ```
-
 
 ## Development
 
